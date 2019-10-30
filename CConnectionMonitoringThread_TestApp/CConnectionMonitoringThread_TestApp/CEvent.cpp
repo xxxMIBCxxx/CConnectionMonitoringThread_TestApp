@@ -112,6 +112,8 @@ CEvent::RESULT_ENUM CEvent::ResetEvent()
 {
 	uint64_t				event = 0;
 	int						iRet = 0;
+	fd_set					readfds;
+	timeval					tTimeval;
 
 
 	// イベントファイルディスクリプタのチェック
@@ -120,15 +122,39 @@ CEvent::RESULT_ENUM CEvent::ResetEvent()
 		return RESULT_ERROR_EVENT_FD;
 	}
 
-	// イベントリセット
-	iRet = read(m_efd, &event, sizeof(event));
+	tTimeval.tv_sec = 0;
+	tTimeval.tv_usec = 0;
+
+
+	// イベントリセットが行えれるかのチェック
+	FD_ZERO(&readfds);
+	FD_SET(m_efd, &readfds);
+	iRet = select(m_efd + 1, &readfds, NULL, NULL, &tTimeval);
 	if (iRet < 0)
 	{
 		m_errno = errno;
 #ifdef _CEVENT_DEBUG_
-		perror("CEvent - read");
+		perror("CEvent - select");
 #endif	// #ifdef _CEVENT_DEBUG_
-		return RESULT_ERROR_EVENT_RESET;
+		return RESULT_ERROR_SYSTEM;
+	}
+	if (iRet == 0)
+	{
+		// 何もしない（正常終了）
+		// ※既にリセットされているときにResetEventを行うと、このルートを通る
+	}
+	else
+	{
+		// イベントリセット
+		iRet = read(m_efd, &event, sizeof(event));
+		if (iRet < 0)
+		{
+			m_errno = errno;
+#ifdef _CEVENT_DEBUG_
+			perror("CEvent - read");
+#endif	// #ifdef _CEVENT_DEBUG_
+			return RESULT_ERROR_EVENT_RESET;
+		}
 	}
 
 	return RESULT_SUCCESS;
@@ -136,7 +162,7 @@ CEvent::RESULT_ENUM CEvent::ResetEvent()
 
 
 //-----------------------------------------------------------------------------
-// イベントリセット
+// イベント待ち
 //-----------------------------------------------------------------------------
 CEvent::RESULT_ENUM CEvent::Wait(DWORD dwTimeout)
 {

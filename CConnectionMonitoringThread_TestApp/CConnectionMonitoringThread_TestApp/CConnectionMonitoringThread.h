@@ -2,8 +2,10 @@
 //*****************************************************************************
 // クライアント接続監視スレッド
 //*****************************************************************************
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include "CThread.h"
-
 
 
 
@@ -49,15 +51,20 @@ private:
 
 	SERVER_INFO_TABLE						m_tServerInfo;					// サーバー情報
 
+
+	int										m_epfd;							// epollファイルディスクリプタ（クライアント接続監視スレッドで使用）
+
+
 public:
 	CConnectionMonitoringThread();
 	~CConnectionMonitoringThread();
-	RESULT_ENUM Start(SERVER_INFO_TABLE &tServerInfo);
-	RESULT_ENUM Stop(SERVER_INFO_TABLE& tServerInfo);
+	RESULT_ENUM Start();
+	RESULT_ENUM Stop();
 
 private:
 	RESULT_ENUM ServerConnectInit(SERVER_INFO_TABLE& tServerInfo);
 	void ThreadProc();
+	static void ThreadProcCleanup(void* pArg);
 };
 
 

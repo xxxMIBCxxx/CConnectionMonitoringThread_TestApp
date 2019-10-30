@@ -12,6 +12,7 @@
 #include "CThread.h"
 
 
+#define _CTHREAD_DEBUG_
 #define	CTHREAD_START_TIMEOUT				( 3 * 1000 )			// スレッド開始待ちタイムアウト(ms)
 #define	CTHREAD_END_TIMEOUT					( 3 * 1000 )			// スレッド終了待ちタイムアウト(ms)
 
@@ -111,8 +112,9 @@ CThread::RESULT_ENUM CThread::Start()
 	if (iRet != 0)
 	{
 		m_iError = errno;
-		printf("pthread_create Error. [errno：%d]\n", m_iError);
-		printf("-> %s\n", strerror(m_iError));
+#ifdef _CTHREAD_DEBUG_
+		perror("CThread::Start - pthread_create");
+#endif	// #ifdef _CTHREAD_DEBUG_
 		return RESULT_ERROR_START;
 	}
 
@@ -124,12 +126,18 @@ CThread::RESULT_ENUM CThread::Start()
 		break;
 
 	case CEvent::RESULT_WAIT_TIMEOUT:			// タイムアウト
+#ifdef _CTHREAD_DEBUG_
+		printf("CThread::Start - WaitTimeout\n");
+#endif	// #ifdef _CTHREAD_DEBUG_
 		pthread_cancel(m_hThread);
 		pthread_join(m_hThread, NULL);
 		m_hThread = 0;
 		return RESULT_ERROR_START_TIMEOUT;
 
 	default:
+#ifdef _CTHREAD_DEBUG_
+		printf("CThread::Start - Wait Error. [0x%08X]\n", eEventRet);
+#endif	// #ifdef _CTHREAD_DEBUG_
 		pthread_cancel(m_hThread);
 		pthread_join(m_hThread, NULL);
 		m_hThread = 0;
@@ -165,23 +173,33 @@ CThread::RESULT_ENUM CThread::Stop()
 	eEventRet = this->m_cThreadEndReqEvent.SetEvent();
 	if (eEventRet != CEvent::RESULT_SUCCESS)
 	{
+#ifdef _CTHREAD_DEBUG_
+		printf("CThread::Stop - SetEvent Error. [0x%08X]\n", eEventRet);
+#endif	// #ifdef _CTHREAD_DEBUG_
+		
 		// スレッド停止に失敗した場合は、強制的に終了させる
 		pthread_cancel(m_hThread);
 	}
 	else
 	{
 		// スレッド終了イベント待ち
-		eEventRet = this->m_cThreadEndEvent.Wait();
+		eEventRet = this->m_cThreadEndEvent.Wait(CTHREAD_END_TIMEOUT);
 		switch (eEventRet) {
 		case CEvent::RESULT_RECIVE_EVENT:			// スレッド終了イベントを受信
 			this->m_cThreadEndEvent.ResetEvent();
 			break;
 
 		case CEvent::RESULT_WAIT_TIMEOUT:			// タイムアウト
+#ifdef _CTHREAD_DEBUG_
+			printf("CThread::Stop - Timeout\n");
+#endif	// #ifdef _CTHREAD_DEBUG_
 			pthread_cancel(m_hThread);
 			break;
 
 		default:
+#ifdef _CTHREAD_DEBUG_
+			printf("CThread::Stop - Wait Error. [0x%08X]\n", eEventRet);
+#endif	// #ifdef _CTHREAD_DEBUG_
 			pthread_cancel(m_hThread);
 			break;
 		}
