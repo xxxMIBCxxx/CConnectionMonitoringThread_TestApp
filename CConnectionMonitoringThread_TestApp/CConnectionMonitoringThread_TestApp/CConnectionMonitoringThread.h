@@ -6,6 +6,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "CThread.h"
+#include "CClientResponseThread.h"
+#include "list"
 
 
 
@@ -37,12 +39,12 @@ public:
 	} SERVER_INFO_TABLE;
 
 
-	// クライアント情報構造体
-	typedef struct
-	{
-		int									Socket;							// ソケット
-		struct sockaddr_in					tAddr;							// インターネットソケットアドレス構造体
-	} CLIENT_INFO_TABLE;
+	//// クライアント情報構造体
+	//typedef struct
+	//{
+	//	int									Socket;							// ソケット
+	//	struct sockaddr_in					tAddr;							// インターネットソケットアドレス構造体
+	//} CLIENT_INFO_TABLE;
 
 
 private:
@@ -53,6 +55,10 @@ private:
 
 
 	int										m_epfd;							// epollファイルディスクリプタ（クライアント接続監視スレッドで使用）
+
+	CEvent									m_cClientResponseThread_EndEvent;	// クライアント応答スレッド終了処理イベント
+	std::list< CClientResponseThread *>		m_ClientResponseThreadList;
+
 
 
 public:
@@ -65,6 +71,8 @@ private:
 	RESULT_ENUM ServerConnectInit(SERVER_INFO_TABLE& tServerInfo);
 	void ThreadProc();
 	static void ThreadProcCleanup(void* pArg);
+	void ClientResponseThreadList_Clear();
+	void ClientResponseThreadList_CheckEndThread();
 };
 
 
